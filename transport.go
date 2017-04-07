@@ -50,7 +50,6 @@ func (m *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	m.mutex.Lock()
-	defer m.mutex.Unlock()
 	defer Clean()
 
 	var err error
@@ -59,6 +58,7 @@ func (m *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	// Match mock for the incoming http.Request
 	mock, err := MatchMock(req)
 	if err != nil {
+		m.mutex.Unlock()
 		return nil, err
 	}
 
@@ -66,18 +66,22 @@ func (m *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	networking := shouldUseNetwork(req, mock)
 	if !networking && mock == nil {
 		trackUnmatchedRequest(req)
+		m.mutex.Unlock()
 		return nil, ErrCannotMatch
 	}
 
 	// Perform real networking via original transport
 	if networking {
+		if mock == nil {
+			m.mutex.Unlock()
+		}
 		res, err = m.Transport.RoundTrip(req)
 		// In no mock matched, continue with the response
 		if err != nil || mock == nil {
 			return res, err
 		}
 	}
-
+	m.mutex.Unlock()
 	return Responder(req, mock.Response(), res)
 }
 
