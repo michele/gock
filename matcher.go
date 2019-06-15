@@ -1,6 +1,9 @@
 package gock
 
-import "net/http"
+import (
+	"fmt"
+	"net/http"
+)
 
 // MatchersHeader exposes an slice of HTTP header specific mock matchers.
 var MatchersHeader = []MatchFunc{
@@ -89,12 +92,14 @@ func (m *MockMatcher) Flush() {
 // Match matches the given http.Request with a mock request
 // returning true in case that the request matches, otherwise false.
 func (m *MockMatcher) Match(req *http.Request, ereq *Request) (bool, error) {
-	for _, matcher := range m.Matchers {
+	for i, matcher := range m.Matchers {
 		matches, err := matcher(req, ereq)
 		if err != nil {
+			fmt.Printf("Matcher: %d\n\nError: %+v\n\n", i, err)
 			return false, err
 		}
 		if !matches {
+			fmt.Printf("Matcher: %d\n\nError: Doesn't match\n\n", i)
 			return false, nil
 		}
 	}
